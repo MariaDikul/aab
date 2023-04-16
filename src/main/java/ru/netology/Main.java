@@ -1,19 +1,23 @@
 package ru.netology;
 
 import java.util.*;
+import java.util.concurrent.*;
 
 public class Main {
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
         String[] texts = new String[25];
         for (int i = 0; i < texts.length; i++) {
             texts[i] = generateText("aab", 30_000);
         }
 
-        List<Thread> threads = new ArrayList<>();
         long startTs = System.currentTimeMillis(); // start time
+
+        ExecutorService threadPool = Executors.newFixedThreadPool(texts.length);
+        List<Future> futures = new ArrayList<>();
+
         for (String text : texts) {
-            Runnable logic = () -> {
+            Callable<Integer> logic = () -> {
                 int maxSize = 0;
                 for (int i = 0; i < text.length(); i++) {
                     for (int j = 0; j < text.length(); j++) {
@@ -33,16 +37,20 @@ public class Main {
                     }
                 }
                 System.out.println(text.substring(0, 100) + " -> " + maxSize);
+                return maxSize;
             };
-            Thread thread = new Thread(logic);
-            threads.add(thread);
-            thread.start();
+            Future<Integer> task = threadPool.submit(logic);
+            futures.add(task);
         }
-        for (Thread thread : threads) {
-            thread.join(); // зависаем, ждём когда поток объект которого лежит в thread завершится
+        threadPool.shutdown();
+        int absolutMaxSize = 0;
+        for (Future<Integer> future : futures) {
+            if (absolutMaxSize < future.get()) {
+                absolutMaxSize = future.get();
+            }
         }
+        System.out.println("Максимальный интервал значений: " + absolutMaxSize);
         long endTs = System.currentTimeMillis(); // end time
-
         System.out.println("Time: " + (endTs - startTs) + "ms");
     }
 
